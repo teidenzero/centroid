@@ -1,0 +1,3 @@
+- QUADRA mode for very thick objects -> find center and create 4 x 904 x 904 subframes 
+  if contour inpainting doesn't give good results
+  Advantages: each 904x904 set of 50 frames takes around 20 minutes to process vs 3hours of 1x1920x1080 object
