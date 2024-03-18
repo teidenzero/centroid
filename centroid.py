@@ -34,7 +34,7 @@ def read_centroids_from_file(file_path):
             centroids.append((int(x), int(y)))
     return centroids
 
-def composite_subframes_on_directory(original_images_dir, subframes_dir, centroids_file, output_dir):
+def composite_subframes_on_directory(original_images_dir, subframes_dir, centroids_file, output_dir, portrait):
     """
     For each original image in the specified directory, composite the corresponding subframe
     based on centroid coordinates from the text file and save the composited image.
@@ -76,6 +76,8 @@ def composite_subframes_on_directory(original_images_dir, subframes_dir, centroi
 
             # Calculate where to place the subframe
             subframe = cv2.imread(subframe_path)
+            if portrait == True:
+                subframe = cv2.rotate(subframe, cv2.ROTATE_90_COUNTERCLOCKWISE)
             subframe_height, subframe_width = subframe.shape[:2]
             # Calculate top-left corner of the subframe ensuring it doesn't go out of the original image boundaries
             top_left_x = max(min(centroid[0] - subframe_width // 2, original_width - subframe_width), 0)
@@ -200,7 +202,7 @@ def save_subframe(subframe, file_name):
     """
     cv2.imwrite(file_name, subframe)
 
-def process_images_and_extract_subframes(plate_folder_path, plate_output_folder, mask_folder_path, mask_output_folder):
+def process_images_and_extract_subframes(plate_folder_path, plate_output_folder, mask_folder_path, mask_output_folder, erode, portrait):
     """
     Process all images in the given folder, extract subframes centered on the centroids of red shapes,
     and save the subframes to the specified output folder.
@@ -230,8 +232,11 @@ def process_images_and_extract_subframes(plate_folder_path, plate_output_folder,
                 print('centroid OK mask')
                 mask = cv2.imread(mask_path)
                 subframe = extract_subframe(mask, centroid)
-                #eroded_subframe = erode_subframe_and_get_thick_contour_image(subframe, 10, 20)
+                if erode == True:
+                    subframe = erode_subframe_and_get_thick_contour_image(subframe, 10, 20)
                 output_path = os.path.join(mask_output_folder, f"subframe_{file_name_mask}")
+                if portrait == True:
+                    subframe = cv2.rotate(subframe, cv2.ROTATE_90_CLOCKWISE)
                 save_subframe(subframe, output_path)
 
     for file_name_plate in os.listdir(plate_folder_path):
@@ -244,6 +249,8 @@ def process_images_and_extract_subframes(plate_folder_path, plate_output_folder,
                 image = cv2.imread(img_path)
                 subframe = extract_subframe(image, centroid)
                 output_path = os.path.join(plate_output_folder, f"subframe_{file_name_plate}")
+                if portrait == True:
+                    subframe = cv2.rotate(subframe, cv2.ROTATE_90_CLOCKWISE)
                 save_subframe(subframe, output_path)
     write_centroids_to_file(centroids, plate_output_folder+'\centroids.txt')
 
@@ -294,18 +301,27 @@ def main():
     parser.add_argument('--composite', type=str)
     parser.add_argument('--centroids', type=str)
     parser.add_argument('--subframes', type=str)
-    parser.add_argument('--composite_output', type=str)
+    parser.add_argument('--composite_output', type=bool)
+    parser.add_argument('--portrait', type=bool)
+    parser.add_argument('--erode_mask', type=bool)
 
     # Parse arguments
     args = parser.parse_args()
 
     # Process the folder and print centroids
     #centroids = process_folder(args.folder_path)
-    if args.composite=='yes':
+    if args.erode_mask == True:
+            erode = True
+    if args.portrait == True:
+            portrait = True
+
+    if args.composite == True:
         #centroids = read_centroids_from_file(args.centroids)
-        composite_subframes_on_directory(args.plate_folder_path, args.subframes, args.centroids, args.composite_output)
+        
+        composite_subframes_on_directory(args.plate_folder_path, args.subframes, args.centroids, args.composite_output, portrait)
     else:
-        process_images_and_extract_subframes(args.plate_folder_path, args.plate_output_path, args.mask_folder_path, args.mask_output_path)
+        
+        process_images_and_extract_subframes(args.plate_folder_path, args.plate_output_path, args.mask_folder_path, args.mask_output_path, erode, portrait)
     
     
     #for file_name, centroid in centroids.items():
