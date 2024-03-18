@@ -3,6 +3,94 @@ import numpy as np
 import os
 import argparse
 
+# Implementing the requested functionalities
+
+def write_centroids_to_file(centroids, file_path):
+    """
+    Writes centroid coordinates to a text file.
+
+    Parameters:
+    - centroids: List of tuples representing the centroid coordinates.
+    - file_path: Path to the output text file.
+    """
+    with open(file_path, 'w') as f:
+        for centroid in centroids:
+            f.write(f'{centroid[0]},{centroid[1]}\n')
+
+def read_centroids_from_file(file_path):
+    """
+    Reads centroid coordinates from a text file.
+
+    Parameters:
+    - file_path: Path to the text file containing centroid coordinates.
+
+    Returns:
+    - List of tuples representing the centroid coordinates.
+    """
+    centroids = []
+    with open(file_path, 'r') as f:
+        for line in f:
+            x, y = line.strip().split(',')
+            centroids.append((int(x), int(y)))
+    return centroids
+
+def composite_subframes_on_directory(original_images_dir, subframes_dir, centroids_file, output_dir):
+    """
+    For each original image in the specified directory, composite the corresponding subframe
+    based on centroid coordinates from the text file and save the composited image.
+
+    Parameters:
+    - original_images_dir: Directory containing the original images.
+    - subframes_dir: Directory containing the subframe images.
+    - centroids_file: File containing the centroid coordinates for each image.
+    - output_dir: Directory where the composited images will be saved.
+    """
+    # Read the centroids from the file
+    centroids = read_centroids_from_file(centroids_file)
+    
+    # Ensure the output directory exists
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    subframes = []
+    i = 0
+    for subname in os.listdir(subframes_dir):
+        print(subname)
+        subframes.append(subname)
+    print(subframes[0])
+
+
+
+    # Process each original image
+    for idx, filename in enumerate(sorted(os.listdir(original_images_dir))):
+        if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+            original_image_path = os.path.join(original_images_dir, filename)
+            original_image = cv2.imread(original_image_path)
+            original_height, original_width = original_image.shape[:2]
+
+            # Assume subframes and centroids correspond in order
+            subframe_path = os.path.join(subframes_dir, subframes[idx])  # Update naming convention if needed
+            centroid = centroids[idx]
+
+            
+
+            # Calculate where to place the subframe
+            subframe = cv2.imread(subframe_path)
+            subframe_height, subframe_width = subframe.shape[:2]
+            # Calculate top-left corner of the subframe ensuring it doesn't go out of the original image boundaries
+            top_left_x = max(min(centroid[0] - subframe_width // 2, original_width - subframe_width), 0)
+            top_left_y = max(min(centroid[1] - subframe_height // 2, original_height - subframe_height), 0)
+
+            # Place the subframe onto the original image
+            original_image[top_left_y:top_left_y + subframe_height, top_left_x:top_left_x + subframe_width] = subframe
+
+            # Save the composited image
+            output_path = os.path.join(output_dir, f"composited_{filename}")
+            cv2.imwrite(output_path, original_image)
+        
+
+
+
 def find_red_shape_centroid(image_path):
     """
     Process the given image to find the centroid of the largest red shape.
@@ -13,7 +101,8 @@ def find_red_shape_centroid(image_path):
     Returns:
     - Tuple (x, y) of centroid coordinates, or None if no red shape is found.
     """
-    image = cv2.imread(image_path)
+    print('red shape started')
+    image = cv2.imread(image_path)  
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     lower_red1 = np.array([0, 120, 70])
@@ -24,9 +113,12 @@ def find_red_shape_centroid(image_path):
     mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
     mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
     mask = cv2.bitwise_or(mask1, mask2)
+    print(mask1)
 
     contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    print(contours)
     if contours:
+        print('contours')
         largest_contour = max(contours, key=cv2.contourArea)
         M = cv2.moments(largest_contour)
         if M["m00"] != 0:
@@ -128,18 +220,19 @@ def process_images_and_extract_subframes(plate_folder_path, plate_output_folder,
     for file_name_mask in os.listdir(mask_folder_path):
         if file_name_mask.lower().endswith(('.png', '.jpg', '.jpeg')):
             mask_path = os.path.join(mask_folder_path, file_name_mask)
-            
+            print(mask_path)            
 
             
             centroid = find_red_shape_centroid(mask_path)
             
             centroids.append(centroid)
             if centroid:
+                print('centroid OK mask')
                 mask = cv2.imread(mask_path)
                 subframe = extract_subframe(mask, centroid)
-                eroded_subframe = erode_subframe_and_get_thick_contour_image(subframe, 10, 20)
+                #eroded_subframe = erode_subframe_and_get_thick_contour_image(subframe, 10, 20)
                 output_path = os.path.join(mask_output_folder, f"subframe_{file_name_mask}")
-                save_subframe(eroded_subframe, output_path)
+                save_subframe(subframe, output_path)
 
     for file_name_plate in os.listdir(plate_folder_path):
         if file_name_plate.lower().endswith(('.png', '.jpg', '.jpeg')):
@@ -147,10 +240,12 @@ def process_images_and_extract_subframes(plate_folder_path, plate_output_folder,
             centroid = centroids[i]
             i = i + 1
             if centroid:
+                print('centroid OK plate')
                 image = cv2.imread(img_path)
                 subframe = extract_subframe(image, centroid)
                 output_path = os.path.join(plate_output_folder, f"subframe_{file_name_plate}")
                 save_subframe(subframe, output_path)
+    write_centroids_to_file(centroids, plate_output_folder+'\centroids.txt')
 
 # Integration into main function and argparse for command-line execution would follow similar patterns
 # as discussed earlier, including the addition of an argument for the output folder.
@@ -192,21 +287,29 @@ def erode_subframe_and_get_thick_contour_image(subframe, erosion_pixels=5, conto
 def main():
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Process images to find centroids of red shapes.")
-    parser.add_argument("plate_folder_path", type=str, help="Path to the folder containing image files")
-    parser.add_argument("plate_output_path", type=str, help="Path to the output folder")
-    parser.add_argument("mask_folder_path", type=str, help="Path to the folder containing mask files")
-    parser.add_argument("mask_output_path", type=str, help="Path to the output folder")
+    parser.add_argument("--plate_folder_path", type=str, help="Path to the folder containing image files")
+    parser.add_argument("--plate_output_path", type=str, help="Path to the output folder")
+    parser.add_argument("--mask_folder_path", type=str, help="Path to the folder containing mask files")
+    parser.add_argument("--mask_output_path", type=str, help="Path to the output folder")
+    parser.add_argument('--composite', type=str)
+    parser.add_argument('--centroids', type=str)
+    parser.add_argument('--subframes', type=str)
+    parser.add_argument('--composite_output', type=str)
 
     # Parse arguments
     args = parser.parse_args()
 
     # Process the folder and print centroids
-    centroids = process_folder(args.folder_path)
-    process_images_and_extract_subframes(args.plate_folder_path, args.plate_output_path, args.mask_folder_path, args.mask_output_path)
+    #centroids = process_folder(args.folder_path)
+    if args.composite=='yes':
+        #centroids = read_centroids_from_file(args.centroids)
+        composite_subframes_on_directory(args.plate_folder_path, args.subframes, args.centroids, args.composite_output)
+    else:
+        process_images_and_extract_subframes(args.plate_folder_path, args.plate_output_path, args.mask_folder_path, args.mask_output_path)
     
     
-    for file_name, centroid in centroids.items():
-        print(f"{file_name}: {centroid}")
+    #for file_name, centroid in centroids.items():
+    #    print(f"{file_name}: {centroid}")
 
 if __name__ == "__main__":
     main()
