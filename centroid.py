@@ -308,6 +308,9 @@ def main():
     # Parse arguments
     args = parser.parse_args()
 
+    erode = False
+    portrait = False
+
     # Process the folder and print centroids
     #centroids = process_folder(args.folder_path)
     if args.erode_mask == True:
