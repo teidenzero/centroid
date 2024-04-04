@@ -3,7 +3,13 @@ import numpy as np
 import os
 import argparse
 
-# Implementing the requested functionalities
+"""
+This piece of software is used to track the centroid of a blob in an image sequence and extract subframes centered on the centroid, while writing the centroid values
+to a .txt file. The .txt file can be used to reverse the operation and composite back the subframe into the original frame.
+This is used to output the equivalent of a stabilized image without adding filtering, I wrote this for myself to extract data to feed to neural networks,
+as well as extracting subframes for inference with deep learning algorithms (which most of the time can't process large images)
+This also supports "portrait" mode and an auxiliary function to extract a contour-only version of the blob
+"""
 
 def write_centroids_to_file(centroids, file_path):
     """
@@ -254,8 +260,7 @@ def process_images_and_extract_subframes(plate_folder_path, plate_output_folder,
                 save_subframe(subframe, output_path)
     write_centroids_to_file(centroids, plate_output_folder+'\centroids.txt')
 
-# Integration into main function and argparse for command-line execution would follow similar patterns
-# as discussed earlier, including the addition of an argument for the output folder.
+
                 
 def erode_subframe_and_get_thick_contour_image(subframe, erosion_pixels=5, contour_thickness=3):
     """
@@ -287,8 +292,6 @@ def erode_subframe_and_get_thick_contour_image(subframe, erosion_pixels=5, conto
 
     return contour_image
 
-# This function finds contours on the eroded subframe and draws them with a specified thickness,
-# allowing for a more visually substantial representation of the erosion's impact.
 
 
 def main():
@@ -327,15 +330,10 @@ def main():
         process_images_and_extract_subframes(args.plate_folder_path, args.plate_output_path, args.mask_folder_path, args.mask_output_path, erode, portrait)
     
     
-    #for file_name, centroid in centroids.items():
-    #    print(f"{file_name}: {centroid}")
 
 if __name__ == "__main__":
     main()
 
-# Example usage (commented out to avoid execution without a specific folder path)
-# folder_path = 'path_to_your_folder'
-# centroids = process_folder(folder_path)
-# print(centroids)
+
 
 
